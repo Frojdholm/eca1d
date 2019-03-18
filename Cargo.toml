@@ -1,0 +1,10 @@
+[package]
+name = "eca1d"
+version = "1.0.0"
+authors = ["Hampus Fröjdholm <hampus.frojdholm@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+rand = "0.6"
+clap = "~2.27.0"
+terminal_size = "0.1.8"
