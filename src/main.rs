@@ -4,10 +4,18 @@ use terminal_size::{terminal_size, Height, Width};
 
 use eca1d::{Ca, TermColor, TermImage};
 
-fn is_u8(val: String) -> Result<(), String> {
-    match val.parse::<u8>() {
-        Ok(_) => Ok(()),
-        Err(_) => Err(String::from("has to be between 0-255.")),
+fn is_binary_or_u8(val: String) -> Result<(), String> {
+    let err = String::from("has to be binary string (ex 0b01010101) or number between 0-255");
+    if val.starts_with("0b") {
+        match u8::from_str_radix(&val[2..], 2) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(err),
+        }
+    } else {
+        match val.parse::<u8>() {
+            Ok(_) => Ok(()),
+            Err(_) => Err(err),
+        }
     }
 }
 
@@ -37,7 +45,7 @@ fn main() {
                             .arg(Arg::with_name("rule")
                                 .takes_value(true)
                                 .required(true)
-                                .validator(is_u8)
+                                .validator(is_binary_or_u8)
                                 .index(1)
                                 .help("The rule to use (0-255)."))
                             .arg(Arg::with_name("width")
@@ -67,14 +75,24 @@ fn main() {
                                 .short("u")
                                 .long("unicode")
                                 .help("Draw the image using unicode HALF BLOCK symbols"))
+                            .arg(Arg::with_name("print_rules")
+                                .short("p")
+                                .long("print-rules")
+                                .help("Print the rules"))
                             .get_matches();
 
     // Safe to unwrap since arg is required and validated.
-    let rule: u8 = matches.value_of("rule").unwrap().parse().unwrap();
+    let rule = matches.value_of("rule").unwrap();
+    let rule = if rule.starts_with("0b") {
+        u8::from_str_radix(&rule[2..], 2).unwrap()
+    } else {
+        rule.parse().unwrap()
+    };
 
     let (term_width, term_height) = if let Some((Width(w), Height(h))) = terminal_size() {
         (w, h)
     } else {
+        // If we can't find the terminal size let's just use something small.
         (80, 40)
     };
 
@@ -95,14 +113,26 @@ fn main() {
         // Value is validated by clap as usize
         h.parse().unwrap()
     } else {
-        if matches.is_present("braille") {
-            ((term_height - 1) * 4) as usize
-        } else if matches.is_present("unicode"){
-            ((term_height - 1) * 2) as usize
+        // Printing the rules require two columns at the top.
+        let offset = if matches.is_present("print_rules") {
+            3
         } else {
-            (term_height - 1) as usize
-        }
+            1
+        };
+
+        let mult = if matches.is_present("braille") {
+            4
+        } else if matches.is_present("unicode") {
+            2
+        } else {
+            1
+        };
+        ((term_height - offset) * mult) as usize
     };
+
+    if matches.is_present("print_rules") {
+        print_rules(rule);
+    }
 
     let seed = if let Some(r) = matches.value_of("random") {
         let mut rng = rand::thread_rng();
@@ -130,4 +160,14 @@ fn main() {
     } else {
         print!("{}", image.draw_ascii());
     }
+}
+
+fn print_rules(rule: u8) {
+    let top: String = (0..8).map(|i| format!(" {:03b} |", i)).collect();
+    let bottom: String = format!("{:08b}", rule)
+        .bytes()
+        .map(|i| format!("  {}  |", i as char))
+        .collect();
+    println!("|{}", top);
+    println!("|{}", bottom);
 }

@@ -2,7 +2,7 @@ use std::char;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum Bit {
     One,
     Zero,
